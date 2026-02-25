@@ -1,0 +1,39 @@
+What is the exact name required for the main runnable class: p1.java or p2.java? C
+
+Should the path symbol (+) overwrite original map characters like 'W', '$', or '|' in the output? C
+
+Does the Stack-based approach need to follow the same neighbor discovery order (N, S, E, W) as the Queue? C
+
+Is diagonal movement strictly forbidden for all three algorithms, including the Optimal Path? O 
+
+How does the "Open Walkway" (|) function technically when moving between maze levels? C
+
+If the input is text-map but --Outcoordinate is set, do we output only the path coordinates? C
+
+Does Wolverine always check for a Buck ($) in the current level before moving to the next level? C
+
+Should the four custom exceptions be implemented as "Checked" or "Unchecked" exceptions? O
+
+Where should the Total Runtime be printed (System.out or System.err) to avoid failing the Autograder? C
+
+Are we allowed to use java.util.Stack and java.util.Queue, or must we implement them from scratch? C
+
+What is the expected behavior or exception if a maze file has no 'W' starting position? O
+
+Is there a specific priority for throwing exceptions if a file has multiple different errors? C
+
+Does the "10 test cases" requirement in the Grading section override the "5 test mazes" mentioned earlier? C
+
+In the Extra Credit version, how should the text-map format represent a tile that is crossed multiple times? O
+
+Does the "Total Runtime" need to be inclusive of the time taken to find the path back (the '+' symbols)? O
+
+How should "illegal characters" be handled if they appear on a line after the M x N dimensions are met?C
+
+Is there a specific timeout for the "competitive runtime" bonus points beyond the 10-second limit? O
+
+Should the program exit with a specific error code (other than -1) for map format exceptions? C
+
+How should the program handle a scenario where the Diamond Buck is unreachable but the Walkway is reachable? O
+
+Are there any specific "Coding Style" guidelines or a linting tool we should follow for the 5 style points?O
