@@ -1,0 +1,12 @@
+5 5 1
+@@@@@
+@W..@
+@.@.@
+@..$@
+@@@@@
+
+
+
+//Generate a medium leve map
+//slightly bigger
+//try 2-rooms. aka there should be an Open walkway for this one
