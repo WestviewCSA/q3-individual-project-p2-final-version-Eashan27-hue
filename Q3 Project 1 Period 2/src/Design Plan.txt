@@ -1,0 +1,241 @@
+============================================================
+  Wolverine's Quest for the Diamond Wolverine Coin
+  Design Plan
+============================================================
+
+------------------------------------------------------------
+1. WHAT DOES THE PROGRAM DO?
+------------------------------------------------------------
+This program helps Wolverine navigate through one or more
+mazes to find the Diamond Wolverine Buck ($). The maze is
+read from a text file and can be in two formats:
+  - Text-map format (easyMap1.txt, mediumMap1.txt, etc.)
+  - Coordinate-based format (coordinate.txt)
+
+The program finds a path from Wolverine's start (W) to the
+goal ($) using one of three approaches chosen by the user
+via command line arguments.
+
+If no path exists, it prints:
+  "The Wolverine Store is closed."
+
+------------------------------------------------------------
+2. CLASSES AND THEIR ROLES
+------------------------------------------------------------
+
+p1.java
+  - Main driver class
+  - Parses command line arguments (--Stack, --Queue, --Opt,
+    --Incoordinate, --Outcoordinate, --Time, --Help)
+  - Calls MapReader to load the maze
+  - Calls MazeSolver to find the path
+  - Prints the result in text-map or coordinate format
+  - Times the search algorithm only (not file I/O)
+
+MapReader.java
+  - readMapFile(filename)
+      Reads text-map format files line by line using
+      File and Scanner. Parses M N R header, then reads
+      R mazes each M rows by N columns into char[R][M][N].
+  - readCoordinateFile(filename)
+      Reads coordinate format files. Initializes all cells
+      to '.' then fills in only the listed entries.
+      Each line format: CHAR ROW COL MAZE_LEVEL
+  - readHeader(scanner, filename)
+      Shared helper that reads and validates the M N R line.
+  - isValidChar(ch)
+      Returns true if ch is one of: . @ W $ |
+
+MazeSolver.java
+  - solveWithQueue()
+      BFS approach. Enqueues start, then dequeues and
+      enqueues unvisited N/S/E/W neighbors in that order.
+      Uses a parent map to reconstruct the path once $ 
+      is found. Handles multi-maze via | walkway.
+  - solveWithStack()
+      DFS approach. Same logic as queue but uses a stack
+      (push/pop). Pushes neighbors in reverse order so
+      North is processed first.
+  - solveOptimal()
+      BFS again — BFS on an unweighted graph always gives
+      the shortest path. Same as solveWithQueue() but
+      guaranteed to find the minimum number of steps.
+  - findStart()
+      Scans all mazes for the 'W' character.
+  - encode(maze, row, col)
+      Converts a 3D position to a single int key for the
+      parent HashMap.
+  - decode(key)
+      Converts an int key back to {maze, row, col}.
+  - reconstructPath(parent, goalKey)
+      Walks back through the parent map from goal to start,
+      reverses the list, returns it as int[][3].
+
+MazeExceptions.java
+  - IllegalCommandLineInputsException
+      Thrown when 0 or 2+ of --Stack/--Queue/--Opt are set.
+  - IllegalMapCharacterException
+      Thrown when a character other than . @ W $ | is found.
+  - IncompleteMapException
+      Thrown when a row/maze is too short, or a coordinate
+      is out of bounds.
+  - IncorrectMapFormatException
+      Thrown when the M N R header is missing or malformed.
+
+------------------------------------------------------------
+3. DATA STRUCTURES USED
+------------------------------------------------------------
+
+char[R][M][N]  — 3D array storing the maze grid.
+                 Indexed by [maze][row][col].
+
+Queue (LinkedList<int[]>)
+               — Used in BFS (Queue and Optimal approaches).
+                 Each element is {maze, row, col}.
+
+Deque (ArrayDeque<int[]>)
+               — Used as a Stack in DFS approach.
+                 push() adds to front, pop() removes front.
+
+HashMap<Integer, Integer>
+               — Maps each visited cell (encoded as int)
+                 to its parent cell (also encoded as int).
+                 Used to reconstruct the path after finding $.
+                 Also serves as the "visited" tracker —
+                 if a key exists, the cell was already seen.
+
+ArrayList<int[]>
+               — Temporary list used during path
+                 reconstruction before reversing.
+
+------------------------------------------------------------
+4. ALGORITHM WALKTHROUGH
+------------------------------------------------------------
+
+QUEUE-BASED (BFS):
+  1. Find 'W' — this is the start position.
+  2. Put start into the queue. Mark it visited in parent map.
+  3. While queue is not empty:
+       a. Dequeue the front cell.
+       b. Check all 4 neighbors (N, S, E, W) in that order.
+       c. Skip walls '@' and already-visited cells.
+       d. For each valid neighbor:
+            - Record its parent in the HashMap.
+            - If it is '$', reconstruct and return the path.
+            - If it is '|', also enqueue the same position
+              in the next maze (multi-maze traversal).
+            - Otherwise enqueue it.
+  4. If queue empties with no '$' found, return null.
+
+STACK-BASED (DFS):
+  Same as above but:
+  - Use push/pop instead of enqueue/dequeue.
+  - Push neighbors in reverse order (W, E, S, N) so that
+    when popped, North comes off first (LIFO behavior).
+
+OPTIMAL PATH:
+  - Identical to Queue-based BFS.
+  - BFS on an unweighted graph always finds the shortest
+    path because it explores level by level (by distance).
+  - No extra work needed beyond the queue approach.
+
+PATH RECONSTRUCTION:
+  - Start at the goal cell's key in the parent HashMap.
+  - Follow parent pointers back to the start (parent = -1).
+  - Collect each cell into an ArrayList.
+  - Reverse the list so it goes start → goal.
+  - Return as int[][3].
+
+MULTI-MAZE TRAVERSAL:
+  - When a '|' cell is reached, the solver also visits
+    the same (row, col) position in maze index + 1.
+  - This continues until '$' is found or no path exists.
+
+------------------------------------------------------------
+5. INPUT FORMAT HANDLING
+------------------------------------------------------------
+
+Text-map format:
+  Line 1:   M N R
+  Lines 2+: R mazes tiled top-to-bottom.
+            Each maze is M rows of exactly N characters.
+  Extra characters on a line beyond N are ignored.
+
+Coordinate format:
+  Line 1:   M N R
+  Lines 2+: CHAR ROW COL MAZE_LEVEL  (one per line)
+  All unlisted cells default to '.' (open).
+
+Command line arguments:
+  --Stack         Use DFS solver
+  --Queue         Use BFS solver
+  --Opt           Use optimal (BFS shortest) solver
+  --Incoordinate  Input is coordinate format
+  --Outcoordinate Output in coordinate format
+  --Time          Print runtime of search only
+  --Help          Print usage info and exit
+  <filename>      Always the last argument
+
+------------------------------------------------------------
+6. OUTPUT FORMAT
+------------------------------------------------------------
+
+Text-map output:
+  - Print maze grid with '+' marking the path.
+  - 'W' and '$' keep their original characters.
+  - No dimension line printed (per spec).
+
+Coordinate output:
+  - One line per step: +ROW COL MAZE_LEVEL
+  - Skip the starting 'W' position.
+
+------------------------------------------------------------
+7. ERROR HANDLING
+------------------------------------------------------------
+
+All errors throw a custom exception and print to stderr:
+
+  IncorrectMapFormatException
+    - File is empty
+    - First line is not three positive integers
+
+  IncompleteMapException
+    - A row has fewer than N characters
+    - File ends before all rows of a maze are read
+    - A coordinate entry is outside maze bounds
+
+  IllegalMapCharacterException
+    - Any character other than . @ W $ | in the grid
+    - Invalid CHAR in a coordinate entry
+
+  IllegalCommandLineInputsException
+    - Zero or more than one of --Stack/--Queue/--Opt set
+
+------------------------------------------------------------
+8. TIMING
+------------------------------------------------------------
+  - System.nanoTime() recorded just before solver runs.
+  - System.nanoTime() recorded just after solver returns.
+  - Elapsed time = (end - start) / 1,000,000,000.0
+  - File reading and output printing are NOT timed.
+  - Printed only if --Time switch is set:
+      "Total Runtime: X seconds"
+
+------------------------------------------------------------
+9. TEST FILES
+------------------------------------------------------------
+  easyMap1.txt    — small maze, text-map format
+  easyMap2.txt    — small maze, text-map format
+  mediumMap1.txt  — medium maze, text-map format
+  mediumMap2.txt  — medium maze, text-map format
+  hardMap1.txt    — large maze, text-map format
+  hardMap2.txt    — large maze, text-map format
+  coordinate.txt  — coordinate-based format
+
+To run in Eclipse:
+  Run -> Run Configurations -> Arguments tab
+  Example: --Queue easyMap1.txt
+  Example: --Opt --Time hardMap1.txt
+  Example: --Queue --Incoordinate coordinate.txt
+
+============================================================
