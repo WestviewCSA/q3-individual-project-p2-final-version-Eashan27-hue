@@ -11,21 +11,21 @@ import java.io.FileNotFoundException;
  *       args[0] = "--Queue"
  *       args[1] = "--Incoordinate"
  *       args[2] = "myMaze.txt"
- *   We loop over args[] and set boolean flags for each switch we find.
- *   The input filename is always the LAST argument (args[args.length - 1]).
+ *   The filename is always the LAST argument: args[args.length - 1]
+ *   All switches come before it.
  *
- * REQUIRED SWITCHES (exactly one must be present):
- *   --Stack          Use the stack-based (DFS) path finder
- *   --Queue          Use the queue-based (BFS) path finder
- *   --Opt            Use the optimal (shortest) path finder
+ * REQUIRED (exactly one):
+ *   --Stack          Stack-based (DFS) path finder
+ *   --Queue          Queue-based (BFS) path finder
+ *   --Opt            Optimal (shortest) path finder
  *
- * OPTIONAL SWITCHES:
- *   --Incoordinate   Input file uses coordinate format  (default: text-map)
- *   --Outcoordinate  Output uses coordinate format       (default: text-map)
- *   --Time           Print the search algorithm runtime
+ * OPTIONAL:
+ *   --Incoordinate   Input is coordinate format (default: text-map)
+ *   --Outcoordinate  Output in coordinate format (default: text-map)
+ *   --Time           Print search algorithm runtime
  *   --Help           Print usage info and exit
  *
- * USAGE EXAMPLES:
+ * EXAMPLES:
  *   java p1 --Stack easyMap1.txt
  *   java p1 --Queue --Incoordinate coordinate.txt
  *   java p1 --Opt --Time hardMap1.txt
@@ -37,22 +37,8 @@ public class p1 {
 
         // ---------------------------------------------------------------
         // STEP 1: Parse command-line arguments
-        //
-        // The input file is always the last argument: args[args.length - 1]
-        // All other arguments are switches starting with "--"
         // ---------------------------------------------------------------
 
-        // Guard: must have at least one argument (the filename)
-        if (args.length == 0) {
-            System.err.println("Error: No arguments provided.");
-            System.err.println("Usage: java p1 [--Stack|--Queue|--Opt] [options] <inputfile>");
-            System.exit(-1);
-        }
-
-        // The filename is always the very last argument
-        String filename = args[args.length - 1];
-
-        // Boolean flags for each supported switch
         boolean useStack      = false;
         boolean useQueue      = false;
         boolean useOpt        = false;
@@ -60,9 +46,11 @@ public class p1 {
         boolean outCoordinate = false;
         boolean printTime     = false;
         boolean printHelp     = false;
+        String  filename      = null;
 
-        // Loop over all arguments EXCEPT the last one (which is the filename)
-        for (int i = 0; i < args.length - 1; i++) {
+        // Loop over every argument
+        // The filename is the last arg (does not start with "--")
+        for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--Stack":         useStack      = true; break;
                 case "--Queue":         useQueue      = true; break;
@@ -72,12 +60,13 @@ public class p1 {
                 case "--Time":          printTime     = true; break;
                 case "--Help":          printHelp     = true; break;
                 default:
-                    System.err.println("Warning: Unrecognized switch \"" + args[i] + "\" — ignoring.");
+                    // Anything that is not a "--" switch is the filename
+                    filename = args[i];
             }
         }
 
         // ---------------------------------------------------------------
-        // STEP 2: Handle --Help first (print and exit before any validation)
+        // STEP 2: Handle --Help (print and exit immediately)
         // ---------------------------------------------------------------
         if (printHelp) {
             printHelp();
@@ -85,30 +74,51 @@ public class p1 {
         }
 
         // ---------------------------------------------------------------
-        // STEP 3: Validate that exactly one routing mode was specified.
-        //         If not, throw IllegalCommandLineInputsException.
+        // STEP 3: Validate command line inputs — throw
+        //         IllegalCommandLineInputsException for bad arguments
         // ---------------------------------------------------------------
+
+        // Must have exactly one routing mode
         int modeCount = (useStack ? 1 : 0) + (useQueue ? 1 : 0) + (useOpt ? 1 : 0);
         if (modeCount != 1) {
             try {
                 throw new IllegalCommandLineInputsException(
-                    "You must specify exactly one of --Stack, --Queue, or --Opt. "
-                    + "Found " + modeCount + " routing mode(s).");
+                    "Exactly one of --Stack, --Queue, or --Opt is required. "
+                    + "You provided " + modeCount + ".");
             } catch (IllegalCommandLineInputsException e) {
                 System.err.println("Error: " + e.getMessage());
+                System.err.println("Usage: java p1 [--Stack|--Queue|--Opt] [--Incoordinate]"
+                    + " [--Outcoordinate] [--Time] <inputfile>");
+                System.exit(-1);
+            }
+        }
+
+        // Must have a filename
+        if (filename == null) {
+            try {
+                throw new IllegalCommandLineInputsException("No input file specified.");
+            } catch (IllegalCommandLineInputsException e) {
+                System.err.println("Error: " + e.getMessage());
+                System.err.println();
+                System.err.println("HOW TO FIX IN ECLIPSE:");
+                System.err.println("  1. Click Run -> Run Configurations");
+                System.err.println("  2. Select p1 on the left");
+                System.err.println("  3. Click the Arguments tab");
+                System.err.println("  4. In Program arguments type one of:");
+                System.err.println("       --Queue easyMap1.txt");
+                System.err.println("       --Stack mediumMap1.txt");
+                System.err.println("       --Opt hardMap1.txt");
+                System.err.println("       --Queue --Incoordinate coordinate.txt");
+                System.err.println("  5. Make sure the .txt file is in your project root folder");
+                System.err.println("  6. Click Apply then Run");
                 System.exit(-1);
             }
         }
 
         // ---------------------------------------------------------------
-        // STEP 4: Read the input file using the appropriate reader.
-        //         --Incoordinate → readCoordinateFile()
-        //         (default)      → readMapFile()
-        //
-        //         readMapFile()        handles: easyMap1.txt, easyMap2.txt,
-        //                                       mediumMap1.txt, mediumMap2.txt,
-        //                                       hardMap1.txt, hardMap2.txt
-        //         readCoordinateFile() handles: coordinate.txt
+        // STEP 4: Read the input file
+        //   --Incoordinate  → MapReader.readCoordinateFile()  (coordinate.txt)
+        //   (default)       → MapReader.readMapFile()          (easyMap1.txt etc.)
         // ---------------------------------------------------------------
         char[][][] mazes = null;
         try {
@@ -132,8 +142,8 @@ public class p1 {
         }
 
         // ---------------------------------------------------------------
-        // STEP 5: Run the solver — time ONLY the search algorithm,
-        //         NOT the file reading or output printing (per spec).
+        // STEP 5: Run the solver
+        //   Time ONLY the search — not file reading or output (per spec)
         // ---------------------------------------------------------------
         MazeSolver solver = new MazeSolver(mazes);
 
@@ -152,7 +162,7 @@ public class p1 {
         double elapsedSeconds = (endTime - startTime) / 1_000_000_000.0;
 
         // ---------------------------------------------------------------
-        // STEP 6: Print output in the requested format.
+        // STEP 6: Print output
         // ---------------------------------------------------------------
         if (path == null) {
             System.out.println("The Wolverine Store is closed.");
@@ -164,35 +174,33 @@ public class p1 {
             }
         }
 
-        // Print runtime only if --Time was set
         if (printTime) {
             System.out.printf("Total Runtime: %.9f seconds%n", elapsedSeconds);
         }
     }
 
     // -----------------------------------------------------------------------
-    // Output: Text-map format
+    // Output helpers
     // -----------------------------------------------------------------------
 
     /**
-     * Marks the solution path with '+' on a copy of the maze and prints it.
-     * 'W' (start) and '$' (goal) keep their original characters.
-     * Only the intermediate steps are marked '+'.
-     * The dimension line is NOT printed in the output (per spec).
+     * Prints the maze with '+' marking the path.
+     * 'W' (start) and '$' (goal) keep their characters.
+     * No dimension line is printed (per spec).
      */
     private static void printMapOutput(char[][][] mazes, int[][] path) {
         int R = mazes.length;
         int M = mazes[0].length;
         int N = mazes[0][0].length;
 
-        // Deep copy so we don't alter the original maze data
+        // Deep copy so original maze is not changed
         char[][][] display = new char[R][M][N];
         for (int r = 0; r < R; r++)
             for (int row = 0; row < M; row++)
                 for (int col = 0; col < N; col++)
                     display[r][row][col] = mazes[r][row][col];
 
-        // Mark each step in the path (skip index 0 = 'W', skip last = '$')
+        // Mark intermediate steps with '+' (skip index 0 = W, skip last = $)
         for (int i = 1; i < path.length - 1; i++) {
             int maze = path[i][0];
             int row  = path[i][1];
@@ -200,25 +208,15 @@ public class p1 {
             display[maze][row][col] = '+';
         }
 
-        // Print all mazes tiled top-to-bottom
+        // Print all mazes top-to-bottom
         for (int r = 0; r < R; r++)
             for (int row = 0; row < M; row++)
                 System.out.println(new String(display[r][row]));
     }
 
-    // -----------------------------------------------------------------------
-    // Output: Coordinate format
-    // -----------------------------------------------------------------------
-
     /**
-     * Prints the path in coordinate format: +ROW COL MAZE_LEVEL
+     * Prints path in coordinate format: +ROW COL MAZE_LEVEL
      * Skips the starting 'W' position (index 0).
-     *
-     * Example output:
-     *   +1 1 0
-     *   +2 1 0
-     *   +2 2 0
-     *   +2 3 0
      */
     private static void printCoordinateOutput(int[][] path) {
         for (int i = 1; i < path.length; i++) {
@@ -229,27 +227,20 @@ public class p1 {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // --Help message
-    // -----------------------------------------------------------------------
-
     private static void printHelp() {
         System.out.println("====================================================");
         System.out.println("  Wolverine's Quest for the Diamond Wolverine Coin  ");
         System.out.println("====================================================");
-        System.out.println("Guides Wolverine through a maze to find the Diamond");
-        System.out.println("Wolverine Buck ($) using different path strategies.");
-        System.out.println();
         System.out.println("Usage: java p1 [--Stack|--Queue|--Opt] [options] <inputfile>");
         System.out.println();
-        System.out.println("REQUIRED (exactly one):");
+        System.out.println("REQUIRED (exactly one routing mode):");
         System.out.println("  --Stack          Stack-based (DFS) path search");
         System.out.println("  --Queue          Queue-based (BFS) path search");
         System.out.println("  --Opt            Shortest (optimal) path search");
         System.out.println();
         System.out.println("OPTIONAL:");
-        System.out.println("  --Incoordinate   Input is in coordinate format (default: text-map)");
-        System.out.println("  --Outcoordinate  Output in coordinate format   (default: text-map)");
+        System.out.println("  --Incoordinate   Input is coordinate format (default: text-map)");
+        System.out.println("  --Outcoordinate  Output in coordinate format (default: text-map)");
         System.out.println("  --Time           Print search algorithm runtime");
         System.out.println("  --Help           Print this message and exit");
         System.out.println();
@@ -257,6 +248,6 @@ public class p1 {
         System.out.println("  java p1 --Stack easyMap1.txt");
         System.out.println("  java p1 --Queue --Incoordinate coordinate.txt");
         System.out.println("  java p1 --Opt --Time hardMap1.txt");
-        System.out.println("  java p1 --Queue --Outcoordinate mediumMap2.txt");
+        System.out.println("  java p1 --Stack --Outcoordinate mediumMap2.txt");
     }
 }
