@@ -10,15 +10,16 @@ import java.util.Queue;
 
 /**
  * MazeSolver.java
- * Provides three routing approaches for navigating Wolverine through the maze:
- *   1) Queue-based (BFS) - finds a valid path
- *   2) Stack-based (DFS) - finds a valid path
- *   3) Optimal (BFS shortest path)
+ * ---------------
+ * Finds a path through the maze using three approaches:
+ *   1) solveWithQueue() — BFS, finds a valid path
+ *   2) solveWithStack() — DFS, finds a valid path
+ *   3) solveOptimal()   — BFS, finds the shortest path
  *
- * The maze is stored as char[maze][row][col].
- * Valid chars: '.' open, '@' wall, 'W' start, '$' goal, '|' walkway to next maze.
+ * The maze is char[maze][row][col].
+ * Valid chars: '.' open  '@' wall  'W' start  '$' goal  '|' walkway
  *
- * Path is returned as int[][3] where each entry is {mazeIndex, row, col}.
+ * Path returned as int[][3] where each entry is {maze, row, col}.
  * Returns null if no path exists.
  */
 public class MazeSolver {
@@ -28,46 +29,42 @@ public class MazeSolver {
     private final int M; // rows per maze
     private final int N; // cols per maze
 
-    // Movement deltas: North, South, East, West
+    // North, South, East, West — checked in this order per spec
     private static final int[] DR = {-1, 1, 0, 0};
     private static final int[] DC = {0, 0, 1, -1};
 
     public MazeSolver(char[][][] mazes) {
         this.mazes = mazes;
-        this.R = mazes.length;
-        this.M = mazes[0].length;
-        this.N = mazes[0][0].length;
+        this.R     = mazes.length;
+        this.M     = mazes[0].length;
+        this.N     = mazes[0][0].length;
     }
 
-    // -----------------------------------------------------------------------
-    // Queue-based BFS approach
-    // -----------------------------------------------------------------------
+    // =======================================================================
+    // 1) Queue-based BFS
+    // =======================================================================
 
     /**
-     * Finds a valid path using a queue (BFS).
-     * Explores North, South, East, West in that order.
-     * Handles multi-maze traversal via '|' walkway.
-     *
-     * @return path as int[][3] {maze, row, col}, or null if no path found
+     * Finds a valid path using a Queue (BFS).
+     * Enqueues neighbors North, South, East, West in that order.
      */
     public int[][] solveWithQueue() {
         int[] start = findStart();
         if (start == null) return null;
 
-        // parent map: encodes each visited cell -> the cell that discovered it
-        // key/value: encoded as mazeIndex * M * N + row * N + col
         Map<Integer, Integer> parent = new HashMap<>();
-
         Queue<int[]> queue = new LinkedList<>();
+
         int startKey = encode(start[0], start[1], start[2]);
-        parent.put(startKey, -1); // start has no parent
+        parent.put(startKey, -1);
         queue.add(start);
 
         while (!queue.isEmpty()) {
-            int[] cur = queue.poll();
-            int maze = cur[0], row = cur[1], col = cur[2];
+            int[] cur  = queue.poll();
+            int maze   = cur[0];
+            int row    = cur[1];
+            int col    = cur[2];
 
-            // Try all 4 neighbors
             for (int d = 0; d < 4; d++) {
                 int nr = row + DR[d];
                 int nc = col + DC[d];
@@ -75,21 +72,19 @@ public class MazeSolver {
                 if (!inBounds(nr, nc)) continue;
 
                 char cell = mazes[maze][nr][nc];
-
-                if (cell == '@') continue; // wall
+                if (cell == '@') continue;
 
                 int nKey = encode(maze, nr, nc);
-                if (parent.containsKey(nKey)) continue; // already visited
+                if (parent.containsKey(nKey)) continue;
 
                 parent.put(nKey, encode(maze, row, col));
 
                 if (cell == '$') {
-                    // Found the goal — reconstruct path
-                    return reconstructPath(parent, encode(maze, nr, nc));
+                    return reconstructPath(parent, nKey);
                 }
 
                 if (cell == '|') {
-                    // Walkway: move to same position in next maze
+                    // Walkway — also visit same position in next maze
                     int nextMaze = maze + 1;
                     if (nextMaze < R) {
                         int wKey = encode(nextMaze, nr, nc);
@@ -98,9 +93,6 @@ public class MazeSolver {
                             queue.add(new int[]{nextMaze, nr, nc});
                         }
                     }
-                    // Also enqueue the walkway cell itself in current maze for path marking
-                    queue.add(new int[]{maze, nr, nc});
-                    continue;
                 }
 
                 queue.add(new int[]{maze, nr, nc});
@@ -110,33 +102,32 @@ public class MazeSolver {
         return null; // no path found
     }
 
-    // -----------------------------------------------------------------------
-    // Stack-based DFS approach
-    // -----------------------------------------------------------------------
+    // =======================================================================
+    // 2) Stack-based DFS
+    // =======================================================================
 
     /**
-     * Finds a valid path using a stack (DFS).
-     * Pushes North, South, East, West neighbors in that order.
-     * Handles multi-maze traversal via '|' walkway.
-     *
-     * @return path as int[][3] {maze, row, col}, or null if no path found
+     * Finds a valid path using a Stack (DFS).
+     * Pushes neighbors in reverse order so North is processed first.
      */
     public int[][] solveWithStack() {
         int[] start = findStart();
         if (start == null) return null;
 
         Map<Integer, Integer> parent = new HashMap<>();
-
         Deque<int[]> stack = new ArrayDeque<>();
+
         int startKey = encode(start[0], start[1], start[2]);
         parent.put(startKey, -1);
         stack.push(start);
 
         while (!stack.isEmpty()) {
-            int[] cur = stack.pop();
-            int maze = cur[0], row = cur[1], col = cur[2];
+            int[] cur  = stack.pop();
+            int maze   = cur[0];
+            int row    = cur[1];
+            int col    = cur[2];
 
-            // Try all 4 neighbors (push in reverse so North is processed first)
+            // Push in reverse so North (d=0) is processed first (LIFO)
             for (int d = 3; d >= 0; d--) {
                 int nr = row + DR[d];
                 int nc = col + DC[d];
@@ -144,7 +135,6 @@ public class MazeSolver {
                 if (!inBounds(nr, nc)) continue;
 
                 char cell = mazes[maze][nr][nc];
-
                 if (cell == '@') continue;
 
                 int nKey = encode(maze, nr, nc);
@@ -153,7 +143,7 @@ public class MazeSolver {
                 parent.put(nKey, encode(maze, row, col));
 
                 if (cell == '$') {
-                    return reconstructPath(parent, encode(maze, nr, nc));
+                    return reconstructPath(parent, nKey);
                 }
 
                 if (cell == '|') {
@@ -165,8 +155,6 @@ public class MazeSolver {
                             stack.push(new int[]{nextMaze, nr, nc});
                         }
                     }
-                    stack.push(new int[]{maze, nr, nc});
-                    continue;
                 }
 
                 stack.push(new int[]{maze, nr, nc});
@@ -176,30 +164,30 @@ public class MazeSolver {
         return null;
     }
 
-    // -----------------------------------------------------------------------
-    // Optimal BFS approach (shortest path)
-    // -----------------------------------------------------------------------
+    // =======================================================================
+    // 3) Optimal BFS (shortest path)
+    // =======================================================================
 
     /**
-     * Finds the shortest path using BFS (guaranteed optimal for unweighted graphs).
-     * Handles multi-maze traversal via '|' walkway.
-     *
-     * @return path as int[][3] {maze, row, col}, or null if no path found
+     * Finds the shortest path using BFS.
+     * BFS on an unweighted graph always finds the minimum number of steps.
      */
     public int[][] solveOptimal() {
         int[] start = findStart();
         if (start == null) return null;
 
         Map<Integer, Integer> parent = new HashMap<>();
-
         Queue<int[]> queue = new LinkedList<>();
+
         int startKey = encode(start[0], start[1], start[2]);
         parent.put(startKey, -1);
         queue.add(start);
 
         while (!queue.isEmpty()) {
-            int[] cur = queue.poll();
-            int maze = cur[0], row = cur[1], col = cur[2];
+            int[] cur  = queue.poll();
+            int maze   = cur[0];
+            int row    = cur[1];
+            int col    = cur[2];
 
             for (int d = 0; d < 4; d++) {
                 int nr = row + DR[d];
@@ -208,7 +196,6 @@ public class MazeSolver {
                 if (!inBounds(nr, nc)) continue;
 
                 char cell = mazes[maze][nr][nc];
-
                 if (cell == '@') continue;
 
                 int nKey = encode(maze, nr, nc);
@@ -217,7 +204,7 @@ public class MazeSolver {
                 parent.put(nKey, encode(maze, row, col));
 
                 if (cell == '$') {
-                    return reconstructPath(parent, encode(maze, nr, nc));
+                    return reconstructPath(parent, nKey);
                 }
 
                 if (cell == '|') {
@@ -229,8 +216,6 @@ public class MazeSolver {
                             queue.add(new int[]{nextMaze, nr, nc});
                         }
                     }
-                    queue.add(new int[]{maze, nr, nc});
-                    continue;
                 }
 
                 queue.add(new int[]{maze, nr, nc});
@@ -240,11 +225,11 @@ public class MazeSolver {
         return null;
     }
 
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
+    // =======================================================================
+    // Private helpers
+    // =======================================================================
 
-    /** Find Wolverine's starting position 'W' across all mazes. */
+    /** Scans all mazes to find Wolverine's start position 'W'. */
     private int[] findStart() {
         for (int r = 0; r < R; r++)
             for (int row = 0; row < M; row++)
@@ -254,12 +239,12 @@ public class MazeSolver {
         return null;
     }
 
-    /** Encode a {maze, row, col} triple into a single integer key. */
+    /** Encodes {maze, row, col} into a single int for use as a HashMap key. */
     private int encode(int maze, int row, int col) {
         return maze * M * N + row * N + col;
     }
 
-    /** Decode an integer key back into {maze, row, col}. */
+    /** Decodes a single int key back into {maze, row, col}. */
     private int[] decode(int key) {
         int col  = key % N;
         int row  = (key / N) % M;
@@ -267,14 +252,14 @@ public class MazeSolver {
         return new int[]{maze, row, col};
     }
 
-    /** Check if (row, col) is within maze bounds. */
+    /** Returns true if (row, col) is within the maze grid. */
     private boolean inBounds(int row, int col) {
         return row >= 0 && row < M && col >= 0 && col < N;
     }
 
     /**
-     * Reconstructs the path from start to goal using the parent map.
-     * Returns the path as int[][3] from start to goal.
+     * Walks back through the parent map from goal to start,
+     * then reverses to return the path from start to goal.
      */
     private int[][] reconstructPath(Map<Integer, Integer> parent, int goalKey) {
         List<int[]> path = new ArrayList<>();
@@ -282,8 +267,8 @@ public class MazeSolver {
 
         while (cur != -1) {
             path.add(decode(cur));
-            Integer parentKey = parent.get(cur);
-            cur = (parentKey == null) ? -1 : parentKey;
+            Integer p = parent.get(cur);
+            cur = (p == null) ? -1 : p;
         }
 
         Collections.reverse(path);
