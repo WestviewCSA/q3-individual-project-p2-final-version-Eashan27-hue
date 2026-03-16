@@ -2,50 +2,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
 
-/**
- * MapReader.java
- * --------------
- * Reads maze input files in two formats using File and Scanner.
- *
- * FORMAT 1 - Text-map:
- *   Used by: easyMap1.txt, easyMap2.txt, mediumMap1.txt,
- *            mediumMap2.txt, hardMap1.txt, hardMap2.txt
- *
- * FORMAT 2 - Coordinate:
- *   Used by: coordinate.txt
- *
- * Both start with header line: M N R
- *   M = rows per maze
- *   N = cols per maze
- *   R = number of mazes
- *
- * Returns: char[R][M][N] indexed as [maze][row][col]
- *
- * Valid characters: '.' open  '@' wall  'W' start  '$' goal  '|' walkway
- */
+
 public class MapReader {
 
-    // =======================================================================
-    // FORMAT 1: Text-map reader
-    // =======================================================================
-
-    /**
-     * readMapFile() - reads a text-map input file.
-     *
-     * Layout:
-     *   Line 1:   M N R
-     *   Lines 2+: R mazes tiled top-to-bottom.
-     *             Each maze is M rows of exactly N characters.
-     *
-     * Extra characters past column N on any line are ignored (per spec).
-     *
-     * @param filename  path to the input file
-     * @return          char[R][M][N]
-     * @throws FileNotFoundException        file not found
-     * @throws IncorrectMapFormatException  bad or missing header
-     * @throws IllegalMapCharacterException invalid character in grid
-     * @throws IncompleteMapException       row or maze too short
-     */
+ 
     public static char[][][] readMapFile(String filename)
             throws FileNotFoundException,
                    IncorrectMapFormatException,
@@ -54,7 +14,7 @@ public class MapReader {
 
         Scanner scanner = new Scanner(new File(filename));
 
-        // Read M N R header
+        // Read M N R header — skip any comment/blank lines before it
         int[] dims = readHeader(scanner, filename);
         int M = dims[0];
         int N = dims[1];
@@ -65,14 +25,15 @@ public class MapReader {
         for (int r = 0; r < R; r++) {
             for (int row = 0; row < M; row++) {
 
-                if (!scanner.hasNextLine()) {
+                // Get next meaningful line (skip blanks and // comments)
+                String line = nextMeaningfulLine(scanner);
+
+                if (line == null) {
                     scanner.close();
                     throw new IncompleteMapException(
                         "Ran out of input in maze " + r + " at row " + row
                         + ". Expected " + M + " rows per maze.");
                 }
-
-                String line = scanner.nextLine();
 
                 if (line.length() < N) {
                     scanner.close();
@@ -99,25 +60,7 @@ public class MapReader {
         return mazes;
     }
 
-    // =======================================================================
-    // FORMAT 2: Coordinate-based reader
-    // =======================================================================
-
-    /**
-     * readCoordinateFile() - reads a coordinate-based input file.
-     *
-     * Layout:
-     *   Line 1:   M N R
-     *   Lines 2+: CHAR ROW COL MAZE_LEVEL  (one entry per line)
-     *   All unlisted cells default to '.' (open).
-     *
-     * @param filename  path to the input file
-     * @return          char[R][M][N]
-     * @throws FileNotFoundException        file not found
-     * @throws IncorrectMapFormatException  bad or missing header
-     * @throws IllegalMapCharacterException invalid CHAR in entry
-     * @throws IncompleteMapException       coordinate out of bounds
-     */
+   
     public static char[][][] readCoordinateFile(String filename)
             throws FileNotFoundException,
                    IncorrectMapFormatException,
@@ -142,10 +85,12 @@ public class MapReader {
         // Read each coordinate entry: CHAR ROW COL MAZE_LEVEL
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine().trim();
-            if (line.isEmpty()) continue;
+
+            // Skip blank lines and // comment lines
+            if (line.isEmpty() || line.startsWith("//")) continue;
 
             String[] tokens = line.split("\\s+");
-            if (tokens.length < 4) continue; // skip incomplete lines per spec
+            if (tokens.length < 4) continue;
 
             char ch = tokens[0].charAt(0);
 
@@ -181,24 +126,31 @@ public class MapReader {
         return mazes;
     }
 
-    // =======================================================================
-    // Shared helpers
-    // =======================================================================
+ 
+    private static String nextMeaningfulLine(Scanner scanner) {
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            // Skip blank lines and comment lines
+            if (!line.trim().isEmpty() && !line.trim().startsWith("//")) {
+                return line;
+            }
+        }
+        return null;
+    }
 
-    /**
-     * Reads and validates the "M N R" header line.
-     * Called by both readMapFile() and readCoordinateFile().
-     */
+    
     private static int[] readHeader(Scanner scanner, String filename)
             throws IncorrectMapFormatException {
 
-        if (!scanner.hasNextLine()) {
+        String headerLine = nextMeaningfulLine(scanner);
+
+        if (headerLine == null) {
             throw new IncorrectMapFormatException(
-                "File \"" + filename + "\" is empty. Expected header: M N R");
+                "File \"" + filename + "\" is empty or has no valid header. Expected: M N R");
         }
 
-        String headerLine = scanner.nextLine().trim();
-        String[] parts    = headerLine.split("\\s+");
+        headerLine = headerLine.trim();
+        String[] parts = headerLine.split("\\s+");
 
         if (parts.length < 3) {
             throw new IncorrectMapFormatException(
@@ -226,10 +178,7 @@ public class MapReader {
         return new int[]{M, N, R};
     }
 
-    /**
-     * Returns true if ch is a valid maze character.
-     * Valid: '.' open  '@' wall  'W' start  '$' goal  '|' walkway
-     */
+    
     private static boolean isValidChar(char ch) {
         return ch == '.' || ch == '@' || ch == 'W' || ch == '$' || ch == '|';
     }
