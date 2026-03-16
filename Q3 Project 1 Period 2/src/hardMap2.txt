@@ -1,12 +1,9 @@
 4 4 2
 @@@@
-W..@
+@W.@
 @.|@
 @@@@
 @@@@
 @.$@
 @..@
 @@@@
-//Generate a medium level map
-//slightly bigger
-//try 2-rooms. aka there should be an Open walkway for this one
